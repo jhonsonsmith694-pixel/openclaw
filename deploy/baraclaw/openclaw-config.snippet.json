@@ -1,9 +1,16 @@
 {
-  "_doc": "Apply via 'openclaw config set --batch-json'. Do not paste raw into openclaw.json (validation may reject; use the CLI).",
+  "_doc": "Apply via 'openclaw config set --merge --batch-json'. Do not paste raw into openclaw.json (validation may reject; use the CLI). Keys must be available as env vars.",
   "agents": {
     "defaults": {
-      "model": { "primary": "byteplus/deepseek-v3-2-251201" },
-      "models": { "byteplus/deepseek-v3-2-251201": {} }
+      "model": {
+        "primary": "byteplus/deepseek-v3-2-251201",
+        "fallbacks": [
+          "google/gemini-2.5-flash",
+          "byteplus/gpt-oss-120b-250805",
+          "google/gemma-4-31b-it",
+          "ollama/qwen2.5:3b"
+        ]
+      }
     }
   },
   "models": {
@@ -13,24 +20,40 @@
         "apiKey": "${BYTEPLUS_API_KEY}",
         "api": "openai-completions",
         "models": [
-          {
-            "id": "deepseek-v3-2-251201",
-            "name": "DeepSeek V3.2",
-            "contextWindow": 131072,
-            "maxTokens": 8192
-          }
+          { "id": "deepseek-v3-2-251201", "name": "DeepSeek V3.2", "input": ["text"], "contextWindow": 131072, "maxTokens": 16384 },
+          { "id": "gpt-oss-120b-250805", "name": "GPT-OSS 120B", "input": ["text"], "contextWindow": 131072, "maxTokens": 16384, "reasoning": true }
+        ]
+      },
+      "google": {
+        "baseUrl": "https://generativelanguage.googleapis.com",
+        "apiKey": "${GEMINI_API_KEY}",
+        "api": "google-generative-ai",
+        "models": [
+          { "id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "input": ["text", "image"], "contextWindow": 1048576, "maxTokens": 65536, "reasoning": true },
+          { "id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "input": ["text", "image"], "contextWindow": 1048576, "maxTokens": 65536, "reasoning": true },
+          { "id": "gemma-4-31b-it", "name": "Gemma 4 31B", "input": ["text"], "contextWindow": 262144, "maxTokens": 32768 }
+        ]
+      },
+      "ollama": {
+        "baseUrl": "http://127.0.0.1:11434",
+        "api": "ollama",
+        "models": [
+          { "id": "qwen2.5:3b", "name": "Qwen 2.5 3B (local)", "input": ["text"], "contextWindow": 32768, "maxTokens": 4096 }
         ]
       }
     }
   },
   "auth": {
     "profiles": {
-      "byteplus:default": { "provider": "byteplus", "mode": "api_key" }
+      "byteplus:default": { "provider": "byteplus", "mode": "api_key" },
+      "google:default": { "provider": "google", "mode": "api_key" }
     }
   },
   "plugins": {
     "entries": {
       "byteplus": { "enabled": true },
+      "google": { "enabled": true },
+      "ollama": { "enabled": true },
       "telegram": { "enabled": true }
     }
   },

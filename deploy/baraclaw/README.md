@@ -14,14 +14,33 @@ OpenClaw deployment guide.
   an active login session and survives VM reboots
 - `Restart=always`, `RestartSec=5` — auto-recovers from crashes
 
+## Model layout (multi-tier fallback)
+
+OpenClaw's `agents.defaults.model` is configured as a chain. If the primary
+fails or hits rate limits, OpenClaw walks the fallback list in order and the
+bot keeps replying.
+
+| Tier | Model | Provider | Notes |
+| --- | --- | --- | --- |
+| Primary | `deepseek-v3-2-251201` | BytePlus ARK | Free pack, fastest, strongest stable |
+| Fallback 1 | `gemini-2.5-flash` | Google AI Studio | Free tier, 1M tokens/day, very fast |
+| Fallback 2 | `gpt-oss-120b-250805` | BytePlus ARK | Reasoning model, separate free pack |
+| Fallback 3 | `gemma-4-31b-it` | Google AI Studio | Free tier |
+| Fallback 4 | `qwen2.5:3b` | Local Ollama on the VM | Always-on safety net, slowest (~25s/reply) |
+
+Provider endpoints in use:
+
+- BytePlus international: `https://ark.ap-southeast.bytepluses.com/api/v3`
+- Google AI Studio: `https://generativelanguage.googleapis.com` (native
+  `google-generative-ai` API, not the OpenAI-compat shim)
+- Ollama local: `http://127.0.0.1:11434`
+
 ## Components
 
-- LLM: BytePlus ARK (international), model `deepseek-v3-2-251201`
-  - Base URL: `https://ark.ap-southeast.bytepluses.com/api/v3`
-  - API key: `BYTEPLUS_API_KEY` env var (injected via systemd drop-in)
 - Channel: Telegram bot `@baraclaw_bot` (long polling, no inbound port needed)
 - DM policy: `pairing` — first DM from a new user yields a pairing code that
   the operator must approve via CLI
+- Bonjour mDNS plugin disabled on the VPS via `OPENCLAW_DISABLE_BONJOUR=1`
 
 ## Recipes
 
@@ -57,7 +76,13 @@ Edit config (validated):
 
 ```
 sudo -u u0_a375 -H bash -lc \
-  'node /usr/lib/node_modules/openclaw/dist/index.js config set --batch-json "[{\"path\":\"...\",\"value\":...}]"'
+  'node /usr/lib/node_modules/openclaw/dist/index.js config set --merge --batch-json "[{\"path\":\"...\",\"value\":...}]"'
+```
+
+Pull a new local Ollama model:
+
+```
+sudo -u u0_a375 -H bash -lc 'ollama pull <model:tag>'
 ```
 
 ## Files of interest on the VM
@@ -65,7 +90,7 @@ sudo -u u0_a375 -H bash -lc \
 - `/home/u0_a375/.openclaw/openclaw.json` — main config
 - `/home/u0_a375/.config/systemd/user/openclaw-gateway.service` — base unit
 - `/home/u0_a375/.config/systemd/user/openclaw-gateway.service.d/secrets.conf`
-  — drop-in supplying `BYTEPLUS_API_KEY` and `OPENCLAW_DISABLE_BONJOUR=1`
+  — drop-in supplying provider API keys and `OPENCLAW_DISABLE_BONJOUR=1`
 - `/tmp/openclaw-1001/openclaw-YYYY-MM-DD.log` — JSON log file (rotates daily)
 
 ## Templates
