@@ -1,0 +1,44 @@
+{
+  "_doc": "Apply via 'openclaw config set --batch-json'. Do not paste raw into openclaw.json (validation may reject; use the CLI).",
+  "agents": {
+    "defaults": {
+      "model": { "primary": "byteplus/deepseek-v3-2-251201" },
+      "models": { "byteplus/deepseek-v3-2-251201": {} }
+    }
+  },
+  "models": {
+    "providers": {
+      "byteplus": {
+        "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3",
+        "apiKey": "${BYTEPLUS_API_KEY}",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "deepseek-v3-2-251201",
+            "name": "DeepSeek V3.2",
+            "contextWindow": 131072,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "auth": {
+    "profiles": {
+      "byteplus:default": { "provider": "byteplus", "mode": "api_key" }
+    }
+  },
+  "plugins": {
+    "entries": {
+      "byteplus": { "enabled": true },
+      "telegram": { "enabled": true }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "dmPolicy": "pairing",
+      "botToken": "REPLACE_WITH_TELEGRAM_BOT_TOKEN"
+    }
+  }
+}
