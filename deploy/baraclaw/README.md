@@ -1,0 +1,81 @@
+# Baraclaw deploy notes (jhonsonsmith694-pixel fork)
+
+Personal deploy notes for the @baraclaw_bot Telegram instance running on a GCP
+Compute Engine VM. These are fork-specific operator notes — NOT a general
+OpenClaw deployment guide.
+
+## Where it runs
+
+- Host: GCP Compute Engine (asia-southeast1-a), Ubuntu 24.04, n4-standard-2
+  (2 vCPU / 8GB RAM)
+- Service: systemd user unit `openclaw-gateway.service` for user `u0_a375`
+  (created by the npm-based `openclaw onboard` flow)
+- Linger enabled (`loginctl enable-linger u0_a375`) so the service runs without
+  an active login session and survives VM reboots
+- `Restart=always`, `RestartSec=5` — auto-recovers from crashes
+
+## Components
+
+- LLM: BytePlus ARK (international), model `deepseek-v3-2-251201`
+  - Base URL: `https://ark.ap-southeast.bytepluses.com/api/v3`
+  - API key: `BYTEPLUS_API_KEY` env var (injected via systemd drop-in)
+- Channel: Telegram bot `@baraclaw_bot` (long polling, no inbound port needed)
+- DM policy: `pairing` — first DM from a new user yields a pairing code that
+  the operator must approve via CLI
+
+## Recipes
+
+Status / health:
+
+```
+sudo -u u0_a375 XDG_RUNTIME_DIR=/run/user/1001 \
+  systemctl --user status openclaw-gateway
+```
+
+Restart:
+
+```
+sudo -u u0_a375 XDG_RUNTIME_DIR=/run/user/1001 \
+  systemctl --user restart openclaw-gateway
+```
+
+Live logs:
+
+```
+sudo -u u0_a375 XDG_RUNTIME_DIR=/run/user/1001 \
+  journalctl --user -u openclaw-gateway -f
+```
+
+Approve a Telegram pairing code (replace `CODE`):
+
+```
+sudo -u u0_a375 -H bash -lc \
+  'node /usr/lib/node_modules/openclaw/dist/index.js pairing approve telegram CODE'
+```
+
+Edit config (validated):
+
+```
+sudo -u u0_a375 -H bash -lc \
+  'node /usr/lib/node_modules/openclaw/dist/index.js config set --batch-json "[{\"path\":\"...\",\"value\":...}]"'
+```
+
+## Files of interest on the VM
+
+- `/home/u0_a375/.openclaw/openclaw.json` — main config
+- `/home/u0_a375/.config/systemd/user/openclaw-gateway.service` — base unit
+- `/home/u0_a375/.config/systemd/user/openclaw-gateway.service.d/secrets.conf`
+  — drop-in supplying `BYTEPLUS_API_KEY` and `OPENCLAW_DISABLE_BONJOUR=1`
+- `/tmp/openclaw-1001/openclaw-YYYY-MM-DD.log` — JSON log file (rotates daily)
+
+## Templates
+
+See `secrets.conf.example` and `openclaw-config.snippet.json` in this directory
+for the shape of the secrets drop-in and the model/provider config block.
+
+## Why not Docker
+
+The VM was already onboarded with the npm install flow; switching to the
+Docker compose layout means a port conflict (the npm-installed service binds
+`127.0.0.1:18789`) and a re-onboard. The npm + systemd path is what is
+deployed, so these notes target that.
